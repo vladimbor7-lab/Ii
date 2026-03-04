@@ -1,0 +1,176 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
+import { ArrowLeft, Key, Save, CheckCircle } from 'lucide-react';
+
+export default function AdminPanel() {
+  const navigate = useNavigate();
+  const [claudeKey, setClaudeKey] = useState(localStorage.getItem('claudeApiKey') || '');
+  const [travelpayoutsKey, setTravelpayoutsKey] = useState(localStorage.getItem('travelpayoutsToken') || '');
+  const [agencyName, setAgencyName] = useState(localStorage.getItem('agencyName') || '');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem('claudeApiKey', claudeKey);
+    localStorage.setItem('travelpayoutsToken', travelpayoutsKey);
+    localStorage.setItem('agencyName', agencyName);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Назад к поиску</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Панель агентства
+            </h1>
+            <p className="text-gray-600">
+              Настройте API ключи для вашего туристического агентства
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {/* Agency Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Название агентства
+              </label>
+              <input
+                type="text"
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+                placeholder="Например: Твой Тур"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            {/* Claude API Key */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  Claude API Key
+                </div>
+              </label>
+              <input
+                type="password"
+                value={claudeKey}
+                onChange={(e) => setClaudeKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-sm"
+              />
+              <p className="mt-2 text-sm text-gray-500">
+                Получите ключ на{' '}
+                <a
+                  href="https://console.anthropic.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  Anthropic Console
+                </a>
+              </p>
+            </div>
+
+            {/* Travelpayouts Token */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  Travelpayouts API Token
+                </div>
+              </label>
+              <input
+                type="password"
+                value={travelpayoutsKey}
+                onChange={(e) => setTravelpayoutsKey(e.target.value)}
+                placeholder="Ваш токен Travelpayouts"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-sm"
+              />
+              <p className="mt-2 text-sm text-gray-500">
+                Зарегистрируйтесь на{' '}
+                <a
+                  href="https://www.travelpayouts.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  Travelpayouts
+                </a>
+                {' '}для доступа к данным Ostrovok.ru
+              </p>
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">
+                Персонализация для каждого агентства
+              </h3>
+              <p className="text-sm text-blue-700">
+                Каждое туристическое агентство использует свои API ключи. 
+                Это позволяет отслеживать статистику и получать комиссию 
+                от Travelpayouts индивидуально.
+              </p>
+            </div>
+
+            {/* Telegram/VK Integration Info */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h3 className="font-semibold text-purple-900 mb-2">
+                Интеграция с мессенджерами (Coming Soon)
+              </h3>
+              <p className="text-sm text-purple-700 mb-2">
+                В следующих версиях будет доступна интеграция с:
+              </p>
+              <ul className="text-sm text-purple-700 list-disc list-inside space-y-1">
+                <li>Telegram Bot API</li>
+                <li>VK Bot API</li>
+                <li>WhatsApp Business API</li>
+              </ul>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex items-center gap-4 pt-4">
+              <button
+                onClick={handleSave}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                Сохранить настройки
+              </button>
+
+              {saved && (
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Сохранено!</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Security Notice */}
+        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-800">
+            <strong>🔒 Безопасность:</strong> API ключи хранятся только в вашем браузере (localStorage). 
+            Для продакшн-версии рекомендуется использовать защищённый backend с шифрованием.
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}
