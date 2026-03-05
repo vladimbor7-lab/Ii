@@ -14,6 +14,43 @@ const getClaudeClient = (apiKey: string) => {
   return new Anthropic({ apiKey });
 };
 
+// Список доступных моделей в порядке приоритета
+const CLAUDE_MODELS = [
+  'claude-3-haiku-20240307',      // Быстрая и доступная для всех
+  'claude-3-sonnet-20240229',     // Баланс скорости и качества
+  'claude-3-opus-20240229',       // Самая мощная
+  'claude-3-5-sonnet-20240620',   // Если доступна 3.5
+];
+
+// Функция для вызова Claude с fallback
+async function callClaudeWithFallback(
+  claude: Anthropic,
+  params: any,
+  modelIndex = 0
+): Promise<any> {
+  if (modelIndex >= CLAUDE_MODELS.length) {
+    throw new Error('Все модели Claude недоступны для вашего API ключа');
+  }
+
+  const model = CLAUDE_MODELS[modelIndex];
+  console.log(`Trying Claude model: ${model}`);
+
+  try {
+    const response = await claude.messages.create({
+      ...params,
+      model: model,
+    });
+    console.log(`Successfully used model: ${model}`);
+    return response;
+  } catch (error: any) {
+    if (error.status === 404 && error.error?.error?.type === 'not_found_error') {
+      console.log(`Model ${model} not available, trying next...`);
+      return callClaudeWithFallback(claude, params, modelIndex + 1);
+    }
+    throw error;
+  }
+}
+
 // Описание инструмента для Claude Tool Use
 const searchHotelsTool = {
   name: 'search_hotels',
@@ -177,12 +214,23 @@ function generateDemoHotels(location: string, count: number) {
 // Эндпоинт для AI-ассистента с Claude Tool Use
 app.post('/make-server-c3625fc2/ai-chat', async (c) => {
   try {
-    const { message, psychotype, conversationHistory, claudeApiKey, travelpayoutsToken } = await c.req.json();
+    const body = await c.req.json();
+    const { message, psychotype, conversationHistory, claudeApiKey, travelpayoutsToken } = body;
+
+    console.log('AI Chat request received:', {
+      messageLength: message?.length,
+      psychotype,
+      historyLength: conversationHistory?.length,
+      hasClaudeKey: !!claudeApiKey,
+      hasTravelpayoutsToken: !!travelpayoutsToken,
+    });
 
     if (!claudeApiKey) {
+      console.error('Claude API key is missing in request');
       return c.json({ error: 'Claude API key is required' }, 400);
     }
 
+    console.log('Initializing Claude client...');
     const claude = getClaudeClient(claudeApiKey);
     
     // Системный промпт с учётом психотипа
@@ -225,9 +273,8 @@ app.post('/make-server-c3625fc2/ai-chat', async (c) => {
 
     console.log('Sending request to Claude with tools...');
 
-    // Отправляем запрос в Claude с инструментами
-    const response = await claude.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    // Отправляем запрос в Claude с инструментами (с автоматическим fallback)
+    const response = await callClaudeWithFallback(claude, {
       max_tokens: 4096,
       system: systemPrompt,
       tools: [searchHotelsTool],
@@ -257,9 +304,8 @@ app.post('/make-server-c3625fc2/ai-chat', async (c) => {
       const hotelsData = await hotelsResponse.json();
       console.log('Hotels data:', hotelsData);
 
-      // Отправляем результат обратно в Claude
-      const followUpResponse = await claude.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+      // Отправляем результат обратно в Claude (с автоматическим fallback)
+      const followUpResponse = await callClaudeWithFallback(claude, {
         max_tokens: 4096,
         system: systemPrompt,
         tools: [searchHotelsTool],
@@ -305,7 +351,25 @@ app.post('/make-server-c3625fc2/ai-chat', async (c) => {
 
   } catch (error: any) {
     console.error('Error in AI chat:', error);
-    return c.json({ error: `AI chat error: ${error.message}` }, 500);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      type: error.type,
+      stack: error.stack,
+    });
+    
+    let errorMessage = 'AI chat error: ' + error.message;
+    
+    // Специфичные ошибки Claude
+    if (error.status === 401) {
+      errorMessage = 'Неверный Claude API ключ. Проверьте ключ в Панели агентства.';
+    } else if (error.status === 429) {
+      errorMessage = 'Превышен лимит запросов к Claude API. Попробуйте позже.';
+    } else if (error.message?.includes('API key')) {
+      errorMessage = 'Проблема с Claude API ключом. Проверьте настройки в Панели агентства.';
+    }
+    
+    return c.json({ error: errorMessage }, error.status || 500);
   }
 });
 
@@ -335,8 +399,7 @@ ${JSON.stringify(answers, null, 2)}
 
 Верни ТОЛЬКО ОДИН психотип из списка выше (точное название).`;
 
-    const response = await claude.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const response = await callClaudeWithFallback(claude, {
       max_tokens: 100,
       messages: [{ role: 'user', content: prompt }],
     });
@@ -355,6 +418,42 @@ ${JSON.stringify(answers, null, 2)}
 // Health check
 app.get('/make-server-c3625fc2/health', (c) => {
   return c.json({ status: 'ok', service: 'AI Travel Assistant (Claude)' });
+});
+
+// Test endpoint для проверки Claude API
+app.post('/make-server-c3625fc2/test-claude', async (c) => {
+  try {
+    const { claudeApiKey } = await c.req.json();
+    
+    if (!claudeApiKey) {
+      return c.json({ error: 'Claude API key is required' }, 400);
+    }
+
+    console.log('Testing Claude API key...');
+    const claude = getClaudeClient(claudeApiKey);
+    
+    const response = await callClaudeWithFallback(claude, {
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'Привет! Просто скажи "OK"' }],
+    });
+
+    const textBlock = response.content.find((block: any) => block.type === 'text');
+    
+    return c.json({
+      success: true,
+      message: 'Claude API key is valid',
+      model: response.model,
+      response: textBlock ? textBlock.text : 'No response',
+    });
+
+  } catch (error: any) {
+    console.error('Claude API test failed:', error);
+    return c.json({
+      success: false,
+      error: error.message,
+      status: error.status,
+    }, error.status || 500);
+  }
 });
 
 Deno.serve(app.fetch);

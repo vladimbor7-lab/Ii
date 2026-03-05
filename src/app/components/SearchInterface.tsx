@@ -63,8 +63,15 @@ export function SearchInterface({ psychotype, filters, onHotelsFound }: SearchIn
     const claudeApiKey = localStorage.getItem('claudeApiKey');
     const travelpayoutsToken = localStorage.getItem('travelpayoutsToken');
 
+    console.log('Claude API Key present:', !!claudeApiKey);
+    console.log('Travelpayouts Token present:', !!travelpayoutsToken);
+
     if (!claudeApiKey) {
-      alert('Пожалуйста, настройте Claude API ключ в панели агентства');
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: '⚠️ Claude API ключ не настроен. Пожалуйста, перейдите в Панель агентства и настройте API ключи.',
+      };
+      setMessages((prev) => [...prev, errorMessage]);
       return;
     }
 
@@ -75,6 +82,8 @@ export function SearchInterface({ psychotype, filters, onHotelsFound }: SearchIn
     setIsStreaming(true);
 
     try {
+      console.log('Sending request to AI chat endpoint...');
+      
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-c3625fc2/ai-chat`,
         {
@@ -93,12 +102,16 @@ export function SearchInterface({ psychotype, filters, onHotelsFound }: SearchIn
         }
       );
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get AI response');
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to get AI response`);
       }
 
       const data = await response.json();
+      console.log('AI Response data:', data);
       
       const assistantMessage: Message = {
         role: 'assistant',

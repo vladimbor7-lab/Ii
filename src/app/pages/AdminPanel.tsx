@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Key, Save, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Key, Save, CheckCircle, TestTube2, Activity } from 'lucide-react';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 export default function AdminPanel() {
   const navigate = useNavigate();
@@ -8,6 +9,8 @@ export default function AdminPanel() {
   const [travelpayoutsKey, setTravelpayoutsKey] = useState(localStorage.getItem('travelpayoutsToken') || '');
   const [agencyName, setAgencyName] = useState(localStorage.getItem('agencyName') || '');
   const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleSave = () => {
     localStorage.setItem('claudeApiKey', claudeKey);
@@ -15,6 +18,43 @@ export default function AdminPanel() {
     localStorage.setItem('agencyName', agencyName);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleTestClaude = async () => {
+    if (!claudeKey) {
+      setTestResult({ success: false, message: 'Введите Claude API ключ' });
+      return;
+    }
+
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-c3625fc2/test-claude`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${publicAnonKey}`,
+          },
+          body: JSON.stringify({ claudeApiKey: claudeKey }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        const model = data.model || 'неизвестно';
+        setTestResult({ success: true, message: `✅ Claude API ключ работает! Модель: ${model}` });
+      } else {
+        setTestResult({ success: false, message: `❌ Ошибка: ${data.error}` });
+      }
+    } catch (error: any) {
+      setTestResult({ success: false, message: `❌ Ошибка: ${error.message}` });
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -85,6 +125,33 @@ export default function AdminPanel() {
                   Anthropic Console
                 </a>
               </p>
+              <button
+                onClick={handleTestClaude}
+                disabled={testing || !claudeKey}
+                className="mt-2 flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <TestTube2 className="w-4 h-4" />
+                {testing ? 'Проверка...' : 'Проверить ключ'}
+              </button>
+              {testResult && (
+                <div className={`mt-2 text-sm ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                  {testResult.message}
+                </div>
+              )}
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-xs text-gray-600 mb-2 font-medium">
+                  Поддерживаемые модели (автоматический выбор):
+                </p>
+                <ul className="text-xs text-gray-500 space-y-1">
+                  <li>• Claude 3 Haiku (быстрая, доступна для всех)</li>
+                  <li>• Claude 3 Sonnet (баланс скорости и качества)</li>
+                  <li>• Claude 3 Opus (самая мощная)</li>
+                  <li>• Claude 3.5 Sonnet (если доступна)</li>
+                </ul>
+                <p className="text-xs text-gray-500 mt-2">
+                  Система автоматически выберет лучшую доступную модель для вашего API ключа.
+                </p>
+              </div>
             </div>
 
             {/* Travelpayouts Token */}
@@ -144,13 +211,21 @@ export default function AdminPanel() {
             </div>
 
             {/* Save Button */}
-            <div className="flex items-center gap-4 pt-4">
+            <div className="flex flex-wrap items-center gap-4 pt-4">
               <button
                 onClick={handleSave}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
               >
                 <Save className="w-5 h-5" />
                 Сохранить настройки
+              </button>
+
+              <button
+                onClick={() => navigate('/diagnostics')}
+                className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+              >
+                <Activity className="w-5 h-5" />
+                Диагностика системы
               </button>
 
               {saved && (

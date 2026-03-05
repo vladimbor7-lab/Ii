@@ -3,7 +3,7 @@ import { SearchInterface } from '../components/SearchInterface';
 import { PsychotypeSelector } from '../components/PsychotypeSelector';
 import { HotelResults } from '../components/HotelResults';
 import { FilterPanel } from '../components/FilterPanel';
-import { Sparkles, Settings } from 'lucide-react';
+import { Sparkles, Settings, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 export default function Home() {
@@ -16,6 +16,8 @@ export default function Home() {
     stars: [] as number[],
     amenities: [] as string[],
   });
+
+  const claudeKeyConfigured = !!localStorage.getItem('claudeApiKey');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -47,6 +49,29 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* API Keys Warning */}
+        {!claudeKeyConfigured && (
+          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-yellow-900 mb-1">
+                  Требуется настройка API ключей
+                </h3>
+                <p className="text-sm text-yellow-800 mb-2">
+                  Для работы AI-помощника необходимо настроить Claude API ключ в Панели агентства.
+                </p>
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="text-sm font-medium text-yellow-900 hover:text-yellow-950 underline"
+                >
+                  Перейти к настройкам →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Psychotype Selector */}
         {showPsychotypeSelector && !psychotype && (
           <div className="mb-8">
